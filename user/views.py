@@ -1,9 +1,11 @@
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView,RetrieveUpdateAPIView
 from user.serializers.user_serializer import UserRegistrationSerializer, UserSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status
 from user.models import User
+from rest_framework.permissions import IsAuthenticated
+from user.permissions import IsOwner
 
 
 class UserRegisterView(CreateAPIView):
@@ -27,3 +29,10 @@ class UserRegisterView(CreateAPIView):
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserProfileView(RetrieveUpdateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_object(self):
+        return self.request.user
