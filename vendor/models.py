@@ -36,4 +36,4 @@ class Vendor(User):
 
     @property
     def profile(self):
-        return self.vendorprofile
+        return self.vendor_profile

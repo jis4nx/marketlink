@@ -8,3 +8,6 @@ djangorestframework-simplejwt
 python-dotenv==1.2.1
 redis==7.1.0
 python-decouple
+pytest
+pytest-django
+pytest-cov
