@@ -6,14 +6,14 @@ from service.serializers.service_serializer import (
     ServiceVariantSerializer,
 )
 from service.models import Service
-from user.permissions import IsServiceOwner, IsVendor
+from user.permissions import IsActiveVendor, IsServiceOwner
 
 
 class ServiceListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "POST":
-            return [IsVendor()]
+            return [IsActiveVendor()]
         return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):

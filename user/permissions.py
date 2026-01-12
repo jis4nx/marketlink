@@ -7,6 +7,19 @@ class IsOwner(BasePermission):
         return obj == request.user
 
 
+class IsActiveVendor(BasePermission):
+    message = "Your vendor account must be active to perform this action."
+
+    def has_permission(self, request, view):
+        user = request.user
+        
+        if not (user.is_authenticated and user.is_vendor):
+            return False
+            
+        vendor_profile = getattr(user, 'vendor_profile', None)
+        return vendor_profile is not None and vendor_profile.is_active
+
+
 class IsVendor(BasePermission):
     """
     Allows access only to users with a Vendor role
