@@ -8,6 +8,8 @@ class Service(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     is_active = models.BooleanField(default=True) #To identify if the service is still active or not
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 class ServiceVariant(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='variants')
@@ -15,3 +17,5 @@ class ServiceVariant(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     estimated_minutes = models.PositiveIntegerField()
     stock = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

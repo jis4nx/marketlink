@@ -33,6 +33,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     @property
+    def is_customer(self):
+        return self.role == UserRole.CUSTOMER
+
+    @property
+    def is_vendor(self):
+        return self.role == UserRole.VENDOR
+
+    @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
 
