@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 import uuid
+from user.models import User
+from user.managers import VendorManager
 
 
 class VendorProfile(models.Model):
@@ -25,3 +27,13 @@ class VendorProfile(models.Model):
 
     def __str__(self):
         return self.business_name
+
+
+class Vendor(User):
+    objects = VendorManager()
+    class Meta:
+        proxy = True
+
+    @property
+    def profile(self):
+        return self.vendorprofile
