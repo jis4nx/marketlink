@@ -3,6 +3,7 @@ from django.conf import settings
 import uuid
 from user.models import User
 from user.managers import VendorManager
+from django.core.exceptions import ValidationError
 
 
 class VendorProfile(models.Model):
@@ -25,12 +26,22 @@ class VendorProfile(models.Model):
         verbose_name = "Vendor Profile"
         verbose_name_plural = "Vendor Profiles"
 
+    def clean(self):
+        super().clean()
+        if self.user and not self.user.is_vendor:
+            raise ValidationError({"vendor": "Selected user must have VENDOR role."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return self.business_name
 
 
 class Vendor(User):
     objects = VendorManager()
+
     class Meta:
         proxy = True
 
