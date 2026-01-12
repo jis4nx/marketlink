@@ -15,3 +15,18 @@ class IsVendor(BasePermission):
     def has_permission(self, request, view):
         user = request.user
         return user.is_authenticated and user.is_vendor
+
+
+class IsServiceOwner(BasePermission):
+    message = "You do not have permission to perform this action."
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+
+        if not user.is_authenticated:
+            return False
+
+        if not user.is_vendor:
+            return False
+
+        return obj.vendor == user.vendor_profile

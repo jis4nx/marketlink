@@ -6,7 +6,7 @@ from service.serializers.service_serializer import (
     ServiceVariantSerializer,
 )
 from service.models import Service
-from user.permissions import IsVendor
+from user.permissions import IsServiceOwner, IsVendor
 
 
 class ServiceListCreateView(generics.ListCreateAPIView):
@@ -23,15 +23,23 @@ class ServiceListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         if self.request.user.is_vendor:
-            return Service.objects.filter(vendor=self.request.user.vendor_profile, is_active=True)
+            return Service.objects.filter(
+                vendor=self.request.user.vendor_profile, is_active=True
+            )
         return Service.objects.filter(vendor__is_active=True, is_active=True)
 
     def perform_create(self, serializer):
         serializer.save(vendor=self.request.user.vendor_profile)
 
 
-class ServiceRetrieveDestroyView(generics.RetrieveDestroyAPIView):
-    ...
+class ServiceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ServiceSerializer
+    queryset = Service.objects.all()
+
+    def get_permissions(self):
+        if self.request.method in ("DELETE", "PUT", "PATCH"):
+            return [IsServiceOwner()]
+        return [permissions.IsAuthenticated()]
 
 
 class ServiceVariantCreateView(generics.CreateAPIView):
