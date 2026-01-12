@@ -42,13 +42,3 @@ class ServiceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         return [permissions.IsAuthenticated()]
 
 
-class ServiceVariantCreateView(generics.CreateAPIView):
-    serializer_class = ServiceVariantSerializer
-
-    def perform_create(self, serializer):
-        service = serializer.validated_data["service"]
-
-        if service.vendor != self.request.user.vendor:
-            raise PermissionDenied("You do not own this service")
-
-        serializer.save()

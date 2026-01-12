@@ -30,3 +30,17 @@ class IsServiceOwner(BasePermission):
             return False
 
         return obj.vendor == user.vendor_profile
+
+class IsServiceVariantOwner(BasePermission):
+    message = "You do not have permission to modify this service variant."
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+
+        if not user.is_authenticated:
+            return False
+
+        if not user.is_vendor:
+            return False
+
+        return obj.service.vendor == user.vendor_profile
