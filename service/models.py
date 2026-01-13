@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from vendor.models import VendorProfile
 import uuid
 from django.core.exceptions import ValidationError
@@ -51,6 +52,8 @@ class ServiceVariant(models.Model):
         verbose_name = "Service Variant"
         verbose_name_plural = "Service Variants"
         unique_together = ["service", "name"]
+
+        constraints = [models.CheckConstraint(condition=Q(stock__gte=0), name="service_variant_gte=0")]
 
     def __str__(self):
         return f"{self.service.name} - {self.name}"

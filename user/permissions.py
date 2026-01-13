@@ -29,6 +29,15 @@ class IsVendor(BasePermission):
         user = request.user
         return user.is_authenticated and user.is_vendor
 
+class IsCustomer(BasePermission):
+    """
+    Allows access only to users with a CUSTOMER Role
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and user.is_customer
+
+
 
 class IsServiceOwner(BasePermission):
     message = "You do not have permission to perform this action."
