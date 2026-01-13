@@ -138,4 +138,5 @@ you can run `test` by `docker compose exec web pytest .`
 
 **Model validation**: Business rules enforced at the model level (like "only active vendors can create services"). Works regardless of how the model is created (API, admin, scripts).
 
-
+# Documentation
+**Postman Collection can be found on** : https://documenter.getpostman.com/view/21282873/2sBXVhBpoS

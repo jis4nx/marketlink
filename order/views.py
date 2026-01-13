@@ -1,8 +1,13 @@
+from os import wait
+from rest_framework.response import Response
+from order.choices import OrderStatus
 from order.models.repair_order import RepairOrder
 from order.serializers import RepairOrderSerializer, RepairOrderListSerializer
-from rest_framework import mixins, viewsets, permissions
-
-from user.permissions import IsCustomer
+from rest_framework import mixins, status, viewsets, permissions
+from django.shortcuts import get_object_or_404
+from order.services import RepairOrderService
+from user.permissions import IsCustomer, IsVendor
+from rest_framework.views import APIView
 
 
 class RepairOrderViewSet(
@@ -39,3 +44,23 @@ class RepairOrderViewSet(
         if user.is_vendor:
             return qs.filter(vendor=user.vendor_profile)
         return qs
+
+
+class RepairOrderCompleteView(APIView):
+    permission_classes = [IsVendor]
+
+    def post(self, request, pk):
+        order = get_object_or_404(RepairOrder, order_id=pk)
+
+        if order.vendor != request.user.vendor_profile:
+            return Response({"error": "Unauthorized access to this order."}, status=403)
+
+        service = RepairOrderService(order)
+        success, message = service.mark_as_completed()
+
+        if not success:
+            return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {"status": "order marked as completed"}, status=status.HTTP_200_OK
+        )

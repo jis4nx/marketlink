@@ -1,4 +1,5 @@
 from decimal import Decimal
+from os import wait
 from django.db import transaction
 from django.core.cache import cache
 from django.db.models import F
@@ -7,7 +8,11 @@ from service.models import ServiceVariant
 from order.models.repair_order import RepairOrder
 from order.models.payment import SSLCommerzData
 from webhook.services.payment import SSLCommerzPayment
-from order.tasks import start_repair_processing_task,send_invoice_task
+from order.tasks import (
+    start_repair_processing_task,
+    send_invoice_task,
+    send_repair_ready_notification,
+)
 
 RESERVATION_TTL = 300
 
@@ -79,7 +84,7 @@ class RepairOrderService:
 
         if data.get("status") in ["VALID", "VALIDATED"]:
 
-            #Amount Verification
+            # Amount Verification
             paid_amount = Decimal(str(data.get("amount", 0)))
             expected_amount = self.order.total_amount
 
@@ -118,6 +123,28 @@ class RepairOrderService:
         self._restore_stock()
         self.order.status = OrderStatus.CANCELLED
         self.order.save(update_fields=["status"])
+
+    def mark_as_completed(self):
+        """
+        Transitions the order from PAID to COMPLETED.
+        This represents the physical repair being finished.
+        """
+        if self.order.status != OrderStatus.PROCESSING:
+            return False, f"Cannot complete an order with status: {self.order.status}"
+
+        try:
+            with transaction.atomic():
+                self.order.status = OrderStatus.COMPLETED
+                self.order.save(update_fields=["status"])
+
+                transaction.on_commit(
+                    lambda: send_repair_ready_notification.delay(self.order.order_id)
+                )
+
+            return True, "Order marked as completed"
+
+        except Exception as e:
+            return False, str(e)
 
     def _restore_stock(self):
         """Helper to increment stock back in DB and Redis"""

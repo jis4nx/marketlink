@@ -23,7 +23,7 @@ class RepairOrderListSerializer(serializers.ModelSerializer):
 
 
 class RepairOrderSerializer(serializers.ModelSerializer):
-    payment_url = serializers.JSONField(read_only=True)
+    payment_url = serializers.CharField(read_only=True)
 
     class Meta:
         model = RepairOrder
