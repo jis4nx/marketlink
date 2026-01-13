@@ -1,9 +1,13 @@
+from decimal import Decimal
 from django.db import transaction
 from django.core.cache import cache
 from django.db.models import F
-from order.choices import OrderStatus
+from order.choices import OrderStatus, PaymentMethodChoice
 from service.models import ServiceVariant
-from order.models import RepairOrder
+from order.models.repair_order import RepairOrder
+from order.models.payment import SSLCommerzData
+from webhook.services.payment import SSLCommerzPayment
+from order.tasks import start_repair_processing_task,send_invoice_task
 
 RESERVATION_TTL = 300
 
@@ -12,42 +16,127 @@ class StockUnavailable(Exception):
     pass
 
 
-def create_repair_order(*, user, variant):
-    redis_stock_key = f"variant:{variant.id}:stock"
-    redis_reservation_key = f"order:{variant.id}:{user.id}:reservation"
+class RepairOrderService:
+    def __init__(self, order: RepairOrder):
+        self.order = order
 
-    # Initialize Redis if missing
-    cache.add(redis_stock_key, variant.stock, timeout=None)
+    @classmethod
+    def init(cls, user, variant, payment_method):
+        redis_stock_key = f"variant:{variant.id}:stock"
 
-    remaining = cache.decr(redis_stock_key)
-    if remaining < 0:
-        cache.incr(redis_stock_key)
-        raise StockUnavailable()
+        # Atomic Decrement
+        cache.add(redis_stock_key, variant.stock, timeout=None)
+        remaining = cache.decr(redis_stock_key)
 
-    cache.set(redis_reservation_key, True, timeout=RESERVATION_TTL)
+        if remaining < 0:
+            cache.incr(redis_stock_key)
+            raise Exception("Stock Unavailable (Redis)")
 
-    try:
-        with transaction.atomic():
-            updated = (
-                ServiceVariant.objects
-                .filter(id=variant.id, stock__gt=0)
-                .update(stock=F("stock") - 1)
-            )
+        try:
+            # Using F() expression prevents race conditions at the DB level
+            with transaction.atomic():
+                updated = ServiceVariant.objects.filter(
+                    id=variant.id, stock__gt=0
+                ).update(stock=F("stock") - 1)
 
-            if updated == 0:
-                raise StockUnavailable()
+                if updated == 0:
+                    raise Exception("Stock Unavailable (Database)")
 
-            order = RepairOrder.objects.create(
-                customer=user,
-                vendor=variant.service.vendor,
-                variant=variant,
-                total_amount=variant.price,
-                status=OrderStatus.PENDING,
-            )
+                order = RepairOrder.objects.create(
+                    customer=user,
+                    vendor=variant.service.vendor,
+                    variant=variant,
+                    total_amount=variant.price,
+                    status=OrderStatus.PENDING,
+                    payment_method=payment_method,
+                )
 
-            return order
+            service_instance = cls(order)
+            payment_gateway = service_instance.get_payment_service()
+            payment_response = payment_gateway.init(order)
 
-    except Exception:
-        cache.incr(redis_stock_key)
-        cache.delete(redis_reservation_key)
-        raise
+            if payment_response.get("status") == "SUCCESS":
+                order.payment_url = payment_response
+                return order
+            else:
+                service_instance.reject()
+                raise Exception(
+                    f"Payment Gateway Error: {payment_response.get('failedreason')}"
+                )
+
+        except Exception as e:
+            # ROLLBACK: Safety net for unexpected errors
+            # If order wasn't created, manually increment Redis back.
+            # If order was created, the .reject() method above handles it.
+            if "order" not in locals():
+                cache.incr(redis_stock_key)
+            raise e
+
+    def confirm(self, val_id: str):
+        """Processes the Webhook/IPN confirmation with amount verification"""
+        payment_service = self.get_payment_service()
+        data = payment_service.validate(val_id=val_id)
+
+        if data.get("status") in ["VALID", "VALIDATED"]:
+
+            #Amount Verification
+            paid_amount = Decimal(str(data.get("amount", 0)))
+            expected_amount = self.order.total_amount
+
+            if paid_amount != expected_amount:
+                print(
+                    f"CRITICAL: Amount mismatch! Paid: {paid_amount}, Expected: {expected_amount}"
+                )
+                self.reject()
+                return
+
+            # 3. Atomic Update and Task Enqueue
+            with transaction.atomic():
+                self.order.status = OrderStatus.PAID
+                self.order.save(update_fields=["status"])
+
+                self.create_payment_data(data=data)
+
+                transaction.on_commit(
+                    lambda: send_invoice_task.delay(self.order.order_id)
+                )
+                transaction.on_commit(
+                    lambda: start_repair_processing_task.delay(self.order.order_id)
+                )
+
+        else:
+            self.reject()
+
+    def reject(self):
+        """Handles failed payments and restores stock"""
+        self._restore_stock()
+        self.order.status = OrderStatus.FAILED
+        self.order.save(update_fields=["status"])
+
+    def cancel(self):
+        """Handles user cancellation and restores stock"""
+        self._restore_stock()
+        self.order.status = OrderStatus.CANCELLED
+        self.order.save(update_fields=["status"])
+
+    def _restore_stock(self):
+        """Helper to increment stock back in DB and Redis"""
+        variant = self.order.variant
+        variant.stock = F("stock") + 1
+        variant.save(update_fields=["stock"])
+        cache.incr(f"variant:{variant.id}:stock")
+
+    def get_payment_service(self):
+        if self.order.payment_method == PaymentMethodChoice.SSLCOMMERZ:
+            return SSLCommerzPayment()
+        # Add other gateways here (Stripe, AmarPay, etc.)
+        raise NotImplementedError("Payment method not supported")
+
+    def create_payment_data(self, data: dict):
+        return SSLCommerzData.objects.create(
+            order=self.order,
+            val_id=data.get("val_id"),
+            tran_id=data.get("tran_id"),
+            amount=data.get("amount"),
+            card_type=data.get("card_type"),
+        )

@@ -4,6 +4,7 @@ from order.choices import OrderStatus
 from service.models import ServiceVariant
 from vendor.models import VendorProfile
 from django.core.exceptions import ValidationError
+from order.choices import PaymentMethodChoice
 import uuid
 
 
@@ -26,6 +27,11 @@ class RepairOrder(models.Model):
     )
     status = models.CharField(
         max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PaymentMethodChoice.choices,
+        default=PaymentMethodChoice.SSLCOMMERZ
     )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)

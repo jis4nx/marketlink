@@ -1,3 +1,8 @@
 from django.contrib import admin
 
-# Register your models here.
+from order.models.payment import SSLCommerzData
+from order.models.repair_order import RepairOrder
+
+
+admin.site.register(SSLCommerzData)
+admin.site.register(RepairOrder)

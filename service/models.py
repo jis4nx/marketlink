@@ -25,7 +25,7 @@ class Service(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.name} - {self.vendor.email}"
+        return f"{self.name}"
 
     def clean(self):
         if not self.vendor.is_active:

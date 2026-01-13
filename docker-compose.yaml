@@ -13,6 +13,17 @@ services:
     networks:
       - marketlink-network
 
+
+  celery_worker:
+    build: .
+    command: celery -A marketlink worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+    networks:
+      - marketlink-network
+
   redis:
     image: redis:7-alpine
     ports:

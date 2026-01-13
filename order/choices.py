@@ -8,3 +8,8 @@ class OrderStatus(TextChoices):
     COMPLETED = "completed", "Completed"
     FAILED = "failed", "Failed"
     CANCELLED = "cancelled", "Cancelled"
+
+
+
+class PaymentMethodChoice(TextChoices):
+    SSLCOMMERZ = "sslcommerz", "SSLCommerz"

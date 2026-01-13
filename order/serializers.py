@@ -1,19 +1,13 @@
 from rest_framework import serializers
-from .models import RepairOrder
-from order.services import create_repair_order, StockUnavailable
-
+from order.models.repair_order import RepairOrder
+from order.services import RepairOrderService
+from order.choices import PaymentMethodChoice
 
 
 class RepairOrderListSerializer(serializers.ModelSerializer):
-    service_name = serializers.CharField(
-        source="variant.service.name", read_only=True
-    )
-    variant_name = serializers.CharField(
-        source="variant.name", read_only=True
-    )
-    vendor_email = serializers.EmailField(
-        source="vendor.email", read_only=True
-    )
+    service_name = serializers.CharField(source="variant.service.name", read_only=True)
+    variant_name = serializers.CharField(source="variant.name", read_only=True)
+    vendor_email = serializers.EmailField(source="vendor.email", read_only=True)
 
     class Meta:
         model = RepairOrder
@@ -29,7 +23,7 @@ class RepairOrderListSerializer(serializers.ModelSerializer):
 
 
 class RepairOrderSerializer(serializers.ModelSerializer):
-    payment_url = serializers.SerializerMethodField()
+    payment_url = serializers.JSONField(read_only=True)
 
     class Meta:
         model = RepairOrder
@@ -52,16 +46,20 @@ class RepairOrderSerializer(serializers.ModelSerializer):
             "created_at",
         )
 
-    def get_payment_url(self, obj):
-        return f"https://payment.example.com/checkout/{obj.order_id}"
-
     def create(self, validated_data):
         user = self.context["request"].user
         variant = validated_data["variant"]
 
+
         try:
-            return create_repair_order(user=user, variant=variant)
-        except StockUnavailable:
-            raise serializers.ValidationError(
-                {"detail": "This service variant is fully booked."}
+            order = RepairOrderService.init(
+                user=user, variant=variant, payment_method=PaymentMethodChoice.SSLCOMMERZ
             )
+            return order
+
+        except Exception as e:
+            if "Stock" in str(e):
+                raise serializers.ValidationError(
+                    {"detail": "This service variant is fully booked."}
+                )
+            raise serializers.ValidationError({"detail": str(e)})

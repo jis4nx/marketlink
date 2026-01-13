@@ -13,6 +13,7 @@ djangorestframework = "==3.16.1"
 redis = "==7.1.0"
 python-decouple = "*"
 djangorestframework-simplejwt = "*"
+requests = "*"
 
 [dev-packages]
 pytest = "*"
