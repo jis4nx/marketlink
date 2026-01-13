@@ -9,7 +9,7 @@ class SSLCommerzPayment:
         self.session_url = config("SSLCOMMERZ_SESSION_URL")
         self.validation_url = config("SSLCOMMERZ_VALIDATION_URL")
         self.store_id = config("SSLCOMMERZ_STORE_ID")
-        self.store_passwd = config("SSLCOMMERZ_STORE_PASS")
+        self.store_passwd = config("WEBHOOK_SECRET")
 
         self.base_domain = config("BASE_DOMAIN", default="http://localhost:8000")
 

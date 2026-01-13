@@ -4,16 +4,15 @@ from order.models.repair_order import RepairOrder
 from order.services import RepairOrderService
 from rest_framework import status
 from webhook.validators import hash_validate_ipn, validate_with_sslcommerz
+from django.db import transaction
 
 
 class IPNOrderConfirmAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
         data = request.data.dict()
-        print("HELLLLLLO")
 
         if not hash_validate_ipn(post_body=data):
-            print("validate_sslcommerz_hash")
             return Response(
                 {"error": "Invalid verify_sign"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -34,13 +33,13 @@ class IPNOrderConfirmAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            order = RepairOrder.objects.get(order_id=kwargs["id"])
-        except RepairOrder.DoesNotExist:
-            return Response(
-                {"error": "Order not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        with transaction.atomic():
+            try:
+                order = RepairOrder.objects.select_for_update().get(
+                    order_id=kwargs["id"]
+                )
+            except RepairOrder.DoesNotExist:
+                return Response({"detail": "Order not found"}, status=404)
 
         if str(order.total_amount) != validation.get("amount"):
             return Response(

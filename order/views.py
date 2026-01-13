@@ -1,7 +1,6 @@
 from order.models.repair_order import RepairOrder
 from order.serializers import RepairOrderSerializer, RepairOrderListSerializer
 from rest_framework import mixins, viewsets, permissions
-from decouple import config
 
 from user.permissions import IsCustomer
 

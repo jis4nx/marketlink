@@ -8,14 +8,11 @@ SECRET_KEY = config("SECRET_KEY", default="django-insecure-change-me-in-producti
 DEBUG = config("DEBUG", default=True, cast=bool)
 
 
-SSLCOMMERZ_STORE_ID = config("SSLCOMMERZ_STORE_ID")
-SSLCOMMERZ_STORE_PASS = config("SSLCOMMERZ_STORE_PASS")
-SSLCOMMERZ_SESSION_URL = config("SSLCOMMERZ_SESSION_URL")
-SSLCOMMERZ_VALIDATION_URL = config("SSLCOMMERZ_VALIDATION_URL")
-
-# ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1frida-unsystematising-criminally.ngrok-free.dev', cast=lambda v: [s.strip() for s in v.split(',')])
-#
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1,frida-unsystematising-criminally.ngrok-free.dev",
+    cast=lambda v: [s.strip() for s in v.split(",")],
+)
 
 
 INSTALLED_APPS = [

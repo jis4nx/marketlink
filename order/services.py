@@ -56,7 +56,7 @@ class RepairOrderService:
             payment_response = payment_gateway.init(order)
 
             if payment_response.get("status") == "SUCCESS":
-                order.payment_url = payment_response
+                order.payment_url = payment_response.get("GatewayPageURL")
                 return order
             else:
                 service_instance.reject()
